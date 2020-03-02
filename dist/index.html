@@ -1,0 +1,112 @@
+<html>
+    <head>
+        <script src="elm.js"></script>
+        <script src="index.js"></script> 
+        <link rel=stylesheet href="style.css" type="text/css">
+    </head>
+    <body>
+        <div id="elm">
+        </div>
+
+        <div id="editor" contenteditable=true>
+            Edit me
+        </div>
+
+        <script>
+            var TEXT = 3;
+
+            function indexOf(coll, elt) {
+                for (i = 0; i < coll.length; i++) {
+                    if (coll[i] == elt) { return i }
+                }
+                return -1
+            }
+
+            function setCaret(node, offset) {
+                var selection = window.getSelection();
+                const range = document.createRange();
+                if (offset <= node.length){
+                    range.setStart(node, offset);
+                    range.setEnd(node, offset);
+                } else {
+                    range.setStart(node, node.length);
+                    range.setEnd(node, node.length);
+                }
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            function deleteCarets(){
+                while(document.getElementById('caret')){
+                    document.getElementById('caret').remove()
+                }
+            }
+
+            function setCaretSpan(){
+                var ranges = window.getSelection();
+                if (ranges == null || ranges.rangeCount <= 0) return null;
+                var nativeRange = ranges.getRangeAt(0);
+                if (nativeRange == null) return null;
+
+                // Make caret node
+                caret_node = document.createElement('span');
+                caret_node.id = 'caret';
+
+                // Insert the node
+                var node = nativeRange.startContainer;
+                var offset = nativeRange.startOffset;
+                if (node.nodeType == TEXT) {
+                    node.after(caret_node);
+                    caret_node.setAttribute("data-offset", offset);
+                    console.log(nativeRange);
+                }
+            }
+
+            function restoreCaret() {
+                var caret_node = document.getElementById('caret');
+                if (caret_node == null){
+                    console.log("Didn't find caret span")
+                    return null;
+                }
+                var offset = caret_node.getAttribute("data-offset");
+                var caret_node_idx = indexOf(caret_node.parentElement.childNodes, caret_node);
+                if (caret_node_idx == 0){
+                    console.log("No siblings of caret_node...")
+                    console.log(caret_node.parentElement)
+                    deleteCarets()
+                    return null
+                }
+                setCaret(caret_node.parentElement.childNodes[caret_node_idx - 1], offset)
+                deleteCarets()
+            }
+
+            function getNewHTML(){
+                setCaretSpan();
+                var toSend = document.getElementById('editor').innerHTML
+                if (toSend.indexOf("caret") == -1) {
+                    console.log("CARET NOT SET !")
+                } else {
+                    app.ports.receiveStuff.send(toSend);
+                }
+                deleteCarets();
+            }
+
+            // initialize with flags
+            var app = Elm.Main.init({
+                node: document.getElementById('elm'),
+                flags: {"value": ""}
+            });
+
+            app.ports.sendStuff.subscribe(function(new_html) {
+                if (new_html.indexOf("caret") == -1) {
+                    console.log("NO CARET IN OUTPUT !");
+                } else {
+                    document.getElementById('editor').innerHTML = new_html
+                    restoreCaret()
+                }
+            })
+
+            document.getElementById('editor').addEventListener('keyup', getNewHTML);
+        </script>
+    </body>
+</html>
