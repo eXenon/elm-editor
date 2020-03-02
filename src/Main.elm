@@ -1,14 +1,12 @@
 port module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
-import Html exposing (Html, button, div, h1, h2, img, text)
-import Html.Attributes exposing (contenteditable, id, property, src)
-import Html.Events exposing (onClick)
+import Html exposing (Html, div)
 import Html.Parser exposing (Node(..))
 import Html.Parser.Util
 import Json.Decode
 import Json.Encode
-import Markdown
+import Markdown.Parser
 import Regex
 
 
@@ -90,22 +88,23 @@ update msg model =
             case result of
                 Ok value ->
                     let
-                        parsed =
+                        html =
                             Html.Parser.run value
                                 |> Debug.log "Incoming HTML :"
                                 |> Result.withDefault []
 
                         old =
-                            parsed
+                            html
                                 |> Html.Parser.Util.toVirtualDom
 
                         new =
-                            parsed
+                            html
                                 |> toEditorText
                                 |> Debug.log "Extracted text :"
-                                |> Markdown.toHtml Nothing
+                                |> Markdown.Parser.parse
+                                |> Result.withDefault []
                     in
-                    ( { model | text = value, nodes = new }, value |> Json.Encode.string |> sendStuff )
+                    ( { model | text = value, nodes = [] }, value |> Json.Encode.string |> sendStuff )
 
                 Err error ->
                     ( { model | error = Json.Decode.errorToString error }, Cmd.none )
